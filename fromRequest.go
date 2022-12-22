@@ -11,5 +11,5 @@ package orbit
 //		// or return err if no user with that ID.
 //	}
 type FromRequestable interface {
-	FromRequest(string) error
+	FromRequest(string) (any, error)
 }

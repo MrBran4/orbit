@@ -10,24 +10,30 @@ import (
 // Dummy string type implementing FromRequest
 type testTypeString string
 
-func (x *testTypeString) FromRequest(param string) error {
+func (x testTypeString) FromRequest(param string) (any, error) {
 	val := testTypeString(param)
-	*x = val
-	return nil
+	return val, nil
 }
 
 // Dummy int32 type implementing FromRequest
 type testTypeInt int32
 
-func (x *testTypeInt) FromRequest(param string) error {
+func (x testTypeInt) FromRequest(param string) (any, error) {
 	intval, err := strconv.Atoi(param)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	result := testTypeInt(intval)
-	*x = result
-	return nil
+	return result, nil
+}
+
+// Dummy int32 type implementing FromRequest
+type testTypeBadIntWillFail int32
+
+func (x testTypeBadIntWillFail) FromRequest(param string) (any, error) {
+	result := testTypeString(param)
+	return result, nil
 }
 
 // Dummy complex type implementing FromRequest
@@ -35,21 +41,20 @@ type testTypeStruct struct {
 	valuePassedIn string
 }
 
-func (x *testTypeStruct) FromRequest(param string) error {
+func (x testTypeStruct) FromRequest(param string) (any, error) {
 	result := testTypeStruct{
 		valuePassedIn: param,
 	}
-	*x = result
-	return nil
+	return result, nil
 }
 
 func Test_FromRequest_testTypeString(t *testing.T) {
 
 	// setup
-	var result testTypeString
+	var zeroedString testTypeString
 
 	// do
-	err := result.FromRequest("hello there")
+	result, err := zeroedString.FromRequest("hello there")
 
 	// check
 	assert.NoError(t, err)
@@ -60,10 +65,10 @@ func Test_FromRequest_testTypeString(t *testing.T) {
 func Test_FromRequest_testTypeInt(t *testing.T) {
 
 	// setup
-	var result testTypeInt
+	var zeroedInt testTypeInt
 
 	// do
-	err := result.FromRequest("128")
+	result, err := zeroedInt.FromRequest("128")
 
 	// check
 	assert.NoError(t, err)
@@ -74,10 +79,10 @@ func Test_FromRequest_testTypeInt(t *testing.T) {
 func Test_FromRequest_testTypeStruct(t *testing.T) {
 
 	// setup
-	var result testTypeStruct
+	var zeroedStruct testTypeStruct
 
 	// do
-	err := result.FromRequest("oof")
+	result, err := zeroedStruct.FromRequest("oof")
 
 	// check
 	assert.NoError(t, err)

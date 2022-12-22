@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-type errRouteDoesNotMatch string
-
-func (e errRouteDoesNotMatch) Error() string {
-	return fmt.Sprintf("route doesn't match (%s)", string(e))
-}
-
 // Tokenise takes a precompiled route regex and an actual request path, and
 // returns a map of params + their values extracted from the request path.
 func tokenise(regex *regexp.Regexp, expectedParams []string, path string) (map[string]string, error) {
