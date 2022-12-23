@@ -43,6 +43,10 @@ func (r *route) bake() error {
 	r.regex = *rx
 	r.orderedParamNames = opn
 
+	if len(r.orderedParamNames) != len(r.params) {
+		return errMisconfigured("number of params in url doesn't match number of types (%d vs %d)")
+	}
+
 	return nil
 
 }
@@ -65,7 +69,7 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req http.Request) error {
 
 	// If this handler is set to match a specific method, check that.
 	if len(r.methods) > 0 {
-		if !contains(r.methods, strings.ToLower(req.Method)) {
+		if !contains(r.methods, strings.ToUpper(req.Method)) {
 			return errRouteDoesNotMatch("wrong http verb")
 		}
 	}

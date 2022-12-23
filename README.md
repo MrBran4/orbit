@@ -123,9 +123,9 @@ func MyNewEventHandler(
     // up the handler to the route.
     //
     // This means you can blindly assert types like this:
-    user := params["user"].(User)
-    newEventName := params["event"].(String)
-    newEvent := body.(Event)
+    user, _ := params["user"].(User)
+    newEventName, _ := params["event"].(orbit.BasicString)
+    newEvent, _ := body.(Event)
 
     // Your app logic
     yourAppStuff.MakeNewEventInDB(user, newEventName, newEvent)
@@ -140,12 +140,14 @@ func MyNewEventHandler(
 r := orbit.NewRouter()
 
 r.Handle(
+    // The path to match against
+    "/user/{user}/event/{event}",
     // your orbit.Handler
     MyNewEventHandler,
     // []string of HTTP methods to match. Nil means all methods.
     []string{"POST"},
     // Param types to decode (types must implement FromRequestable)
-    map[string]FromRequestable{
+    orbit.RouteParams{
         "user": User{},
         "event": orbit.BasicString, // helper: just a string that implements FromRequest.
     },
@@ -168,6 +170,6 @@ log.Fatal(http.ListenAndServe(":8080", r))
 - [x] Decoding from the url params
 - [x] Decoding from the body
 - [x] Checking types
-- [ ] Top level router as a http.Handler
+- [x] Top level router as a http.Handler
 - [ ] Somehow removing reliance on reflection
 - [ ] Child routes inheriting params from parent routes.
