@@ -8,123 +8,166 @@ Orbit's request handling is a bit like the Rocket framework for Rust, hence the 
 
 It's unfinished and not close to being usable yet, but the core 'getting params from the request as the right type' bit is working.
 
-## Quick Example:
+## Main points:
 
-Say you've got an API route to get attendees of a specific event, owned by a specific user.
-Your route template would look like `/user/{user}/event/{event}`, and an example of an
-incoming request intended for that endpoint might be `GET /user/5/event/25`
+### Handlers work like go's `http.Handler`/`http.HandlerFunc`, but the signature is different.
 
-You also have existing User and Event types in your app:
+The interface to meet looks like this:
 
 ```go
+// struct based handler
+type Handler interface {
+    ServeHTTP(
+        http.ResponseWriter, // like net/http
+        *http.Request,       // like net/http
+        RouteParams,         // map["paramName"]ParamValue
+        FromBodyable,        // decoded body, or nil if you don't care
+    )
+}
+
+// func based handler adapter like http.HandlerFunc
+type HandlerFunc func(http.ResponseWriter, *http.Request, RouteParams, FromBodyable)
+```
+
+### Routes can contain paramaters
+
+Routes in Orbit look like this:`/foo/bar/{fizz}/baz/{buzz}`. In this example:
+
+- `fizz` and `buzz` are parameters and can match any string value
+- `/foo/bar/hello/baz/128` matches, with `fizz`=`"hello"`, `buzz`=`"128"`
+- `/foo/bar/baz` doesn't match
+
+The Orbit router also matches _methods_ (you can specify a handler only handles GET requests for example).
+You specify this when you attach the handler to the router.
+
+Handlers are attached to the router like this:
+
+```go
+r := orbit.NewRouter()
+
+r.Handle(
+    handler,    // your orbit.Handler
+    methods,    // []string of HTTP methods to match. Nil means all methods.
+    paramTypes, // map[string]FromRequestable - filled and passed to handler on request
+    bodyType,   // FromBodyable - type to decode request body to (or nil to skip decoding)
+)
+```
+
+### Parameter types must implement FromRequestable
+
+## Quick Example:
+
+Say you've got an API route to create an event for a given user by posting the
+new event as JSON to `/user/{user}/event/{event}`.
+
+An example of a valid request for that endpoint might be `GET /user/5/event/my-event`
+with a JSON body representing a new event. The goal is to create an event owner by
+user `5` called `my-event`, based on the JSON.
+
+In this example we'll set up a route that matches that endpoint, and calls the handler
+with a resolved User, Event name, and Body based on the incoming request.
+
+```go
+// ---
+/// These our our app's types. We only care about users + events in this example.
+/// These types aren't solely for the API, they might mirror what's in our DB.
+
+// Represents a user in our system
 type User struct {
     Uid int
     Name string
 }
 
+// Represents an event in our system
 type Event struct {
     EventID int
     AttendeeNames []string
 }
-```
 
-First, make your types meet the `orbit.FromRequestable` interface by implementing a `FromRequest` method. It's super simple, you're given the string from the param, and you return a valid _whatever_. For example:
+/// ---
+/// To make these types work with Orbit, they need to implement the FromRequestable
+/// or FromBodyable interfaces. You don't need both, but you can if you want.
+//
+// Orbit calls FromRequest when trying to derive a value froman incoming request,
+// or FromBody when trying to decode from the request's body.
 
-```go
 // FromRequest resolves a user based on the UID provided in an API call.
-// For example, FromRequest(125) will return the User with ID 125, or an error.
+// For example, User.FromRequest("125") will return the User with ID 125, or an error.
 func (u User)FromRequest(uid string) (any, error) {
-    // - Cast UID to an int
-    // - Look user up in database
-    // - Populate a user struct with the data from the db
-    return user, nil
+    // Our database stores uids as ints, but the request only has strings.
+    uidInt, _ := strconv.Atoi
+    user, err = yourAppLogic.getUserByUID(uid)
+    return user, err
 }
 
-// Same for Events...
-func (e Event)FromRequest(eventID string) (any, error) {
-    // ...
-```
-
-Ignore the use of Any here for now - Orbit uses reflection to make sure the returned type matches what you asked for.
-See [golang/go#30602](https://github.com/golang/go/issues/30602) for why that would help and why it's unavoidable right now.
-
-Next, just make your handler take an orbit.RouteParams argument. orbit.RequestParams is just an alias for `map[string]FromRequestable` - it'll contain the types from your request. You also need to provide the types when you wire up the handler.
-
-Your handler might look like:
-
-```go
-func MyHandleFunc(w *http.ResponseWriter, r http.Request, params orbit.RouteParams) {
-    // Do something.
+// FromBody resolves an event from the body of a request, by JSON-decoding it.
+func (e Event)FromBody(body io.ReadCloser) (any, error) {
+    var result Event
+    _ = json.NewDecoder(body).Decode(&result)
+    return result, nil
 }
+
+/// ---
+/// Make your handler
+
+// Handles POST /user/{user}/event/{event}
+// with a json-encoded User in the body.
+func MyNewEventHandler(
+    w http.ResponseWriter,
+    r *http.Request,
+    params RouteParams,
+    body FromBodyable,
+){
+    // The magic of Orbit is that if your handler gets called, the params and body
+    // are guaranteed to be present and of the correct type you specify when wiring
+    // up the handler to the route.
+    //
+    // This means you can blindly assert types like this:
+    user := params["user"].(User)
+    newEventName := params["event"].(String)
+    newEvent := body.(Event)
+
+    // Your app logic
+    yourAppStuff.MakeNewEventInDB(user, newEventName, newEvent)
+
+    w.WriteHeader(200)
+}
+
+/// ---
+/// Make a router and wire the handler up to it.
+/// This is where we tell Orbit what types our arguments are.
 
 r := orbit.NewRouter()
-r.HandleGet(
-    "/user/{user_id}/event/{event_id}",
-    orbit.RouteParams{
-        "user": User,
-        "event": Event
+
+r.Handle(
+    // your orbit.Handler
+    MyNewEventHandler,
+    // []string of HTTP methods to match. Nil means all methods.
+    []string{"POST"},
+    // Param types to decode (types must implement FromRequestable)
+    map[string]FromRequestable{
+        "user": User{},
+        "event": orbit.BasicString, // helper: just a string that implements FromRequest.
     },
-    MyHandleFunc,
+    // Body type (must implement FromBodyable)
+    User{},
 )
 
+// Precompiles regexes etc for the router.
+// Call this once before starting up.
+r.Bake()
+
+log.Fatal(http.ListenAndServe(":8080", r))
+
+
 ```
 
-When a request comes in matching `/user/{user_id}/event/{event_id}`, orbit will extract the _string_ parameters
-from the path (the user_id and event_id bits), then it'll pass those to the corresponding FromRequest(...) funcs
-you wrote earlier, storing the result in a new RouteParams struct which gets passed to your handler.
+## Progress
 
-For completeness, that means for the request `/user/5/event/25`, orbit eventually winds up making this call to your code:
-
-```go
-MyHandleFunc(
-    w /* http.ResponseWriter for the request */,
-    r /* The incoming request, for if you need the body or headers in your handler */.
-    orbit.RouteParams{
-        "user": User{Uid: 5, Name: "Joe Bloggs"}, /* The result of User.FromRequest("5") */
-        "event": Event{Uid: 5, Name: "Joe Bloggs"}, /* The result of Event.FromRequest("25") */
-
-    }
-)
-```
-
-Orbit _won't_ call your handler if it fails to build the RouteParams.
-This means that if your handler gets called you can _safely_ just do params["user"] and _expect_ a user to be there.
-
-## Soon but not yet
-
-**Child routes** inherit data from parent routes. For example:
-
-```go
-router := orbit.NewRouter()
-
-// Subrouter (can contain many child routes):
-pr := router.NewGroup("/user/{user_id}", orbit.RouteParams{"user": User{}})
-
-// Route hung off the subrouter
-pr.HandleGet("/event/{event_id}", orbit.RouteParams{"event": Event}, MyHandleFunc)
-```
-
-In this example, when MyHandleFunc is called:
-
-- The Group extracts its information first (grabs the user from the db).
-  If it fails to do this, then nothing further happens.
-- The child handler extracts its information second (grabs the event from the db).
-  Again if this fails, nothing further happens.
-- The params from **both** levels are **combined**.
-
-MyHandleFunc is then called with the params of both itself and its parent routers:
-
-```go
-MyHandleFunc(
-    w /* http.ResponseWriter for the request */,
-    r /* The incoming request, for if you need the body or headers in your handler */.
-    orbit.RouteParams{
-        "user": User{Uid: 5, Name: "Joe Bloggs"}, /* The result of User.FromRequest("5") */
-        "event": Event{Uid: 5, Name: "Joe Bloggs"}, /* The result of Event.FromRequest("25") */
-
-    }
-)
-```
-
-Looks pointless in this example, but it's easy to imagine you have more than one child route of /user which
-all want to know about the user data.
+- [x] Matching routes
+- [x] Decoding from the url params
+- [x] Decoding from the body
+- [x] Checking types
+- [ ] Top level router as a http.Handler
+- [ ] Somehow removing reliance on reflection
+- [ ] Child routes inheriting params from parent routes.
