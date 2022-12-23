@@ -3,6 +3,7 @@ package orbit
 import (
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 // A route is an entry in a router.
@@ -19,6 +20,7 @@ type route struct {
 	path    string      // The path to match on incoming requests. e.g. /a/b/{c}/d
 	handler Handler     // The handler which will actually deal with the request.
 	params  RouteParams // Route parameters that'll be passed to the handler (whose types must implement FromRequestable)
+	methods []string    // The methods to match (e.g. get/put/patch). If it's empty, match all.
 	// filters []FilterFunc // Request filters that can block execution if necessary (todo)
 
 	// generated during config:
@@ -45,12 +47,25 @@ func (r *route) bake() error {
 // Calling ServeHTTP on a route causes it to handle the request if it matches.
 // If the path doesn't match the path fed in, then the request won't be handled.
 //
-// ServeHTTP returns errRouteDoesNotMatch if the route doesn't match (in which
-// case you should continue trying against other handlers), or any other error
-// if this IS the right match but something goes wrong with handling the request
-// (in which case you should not try any further handlers since this was the
-// right one, it just failed somehow).
+// ServeHTTP returns a few different error types:
+//   - errRouteDoesNotMatch if the route simply doesn't match the request path.
+//     In this case you should quietly continue trying against other handlers
+//     in order until one does match.
+//   - errMisconfigured if handling the request encouters something that looks
+//     like it wasn't set up right (e.g. wrong number of args). This won't happen
+//     intermittently - it'll either always work or never work. If you see this
+//     it means you need to check how you're setting orbit up.
+//   - Any other error - it'll bubble up errors returned by your FromRequest,
+//     FromBody, or FromHeader funcs. Up to you how you want to handle these,
+//     but best practice would probably be to return 5xx?
 func (r *route) ServeHTTP(w http.ResponseWriter, req http.Request) error {
+
+	// If this handler is set to match a specific method, check that.
+	if len(r.methods) > 0 {
+		if !contains(r.methods, strings.ToLower(req.Method)) {
+			return errRouteDoesNotMatch("wrong http verb")
+		}
+	}
 
 	// Try matching against the regex and extracting params.
 	paramVals, err := tokenise(&r.regex, r.orderedParamNames, req.URL.Path)
@@ -71,4 +86,15 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req http.Request) error {
 
 	return nil
 
+}
+
+// Kinda obvious but this checks if a slice of strings contains a string...
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
