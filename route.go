@@ -1,7 +1,11 @@
 package orbit
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
 )
@@ -17,10 +21,11 @@ import (
 // See the param docs for more info on how that works.
 type route struct {
 	// passed in during config:
-	path    string      // The path to match on incoming requests. e.g. /a/b/{c}/d
-	handler Handler     // The handler which will actually deal with the request.
-	params  RouteParams // Route parameters that'll be passed to the handler (whose types must implement FromRequestable)
-	methods []string    // The methods to match (e.g. get/put/patch). If it's empty, match all.
+	path     string       // The path to match on incoming requests. e.g. /a/b/{c}/d
+	handler  Handler      // The handler which will actually deal with the request.
+	params   RouteParams  // Route parameters that'll be passed to the handler (whose types must implement FromRequestable)
+	bodyType FromBodyable // The type of the body (which will be nil if the handler doesn't care about the body or will decode its own)
+	methods  []string     // The methods to match (e.g. get/put/patch). If it's empty, match all.
 	// filters []FilterFunc // Request filters that can block execution if necessary (todo)
 
 	// generated during config:
@@ -81,8 +86,41 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req http.Request) error {
 		return err
 	}
 
+	// If the handler isn't expecting a decoded body, we can call it now.
+	if r.bodyType == nil {
+		r.handler.ServeHTTP(w, &req, *scopedParams, nil)
+		return nil
+	}
+
+	// Try decoding the request body
+	var decodedBody FromBodyable = nil
+
+	// Read the body and make 2 new readers from it, since reading once
+	// consumes the body otherwise so it can't be re-read later.
+	body, _ := io.ReadAll(req.Body)
+	bReader1 := io.NopCloser(bytes.NewBuffer(body))
+	bReader2 := io.NopCloser(bytes.NewBuffer(body))
+
+	// Try decoding the body (as 'any' type) by calling the type's FromBody.
+	decodedBodyAsAny, err := r.bodyType.FromBody(bReader1)
+	if err != nil {
+		return err
+	}
+
+	// Decoded body currently has type 'any'. Use reflection to check it's
+	// actually of the correct type...
+	rDecodedBody := reflect.ValueOf(&decodedBody)
+	rDecodedBodyAsAny := reflect.ValueOf(decodedBodyAsAny)
+	if rDecodedBody.Type() != rDecodedBodyAsAny.Type() {
+		return errMisconfigured(fmt.Sprintf("FromBody method returned unexpected type (want %s got %s)", rDecodedBody.Type(), rDecodedBodyAsAny.Type()))
+	}
+	rDecodedBody.Set(reflect.ValueOf(decodedBodyAsAny))
+
+	// Set the request's body back to the second reader so it's not empty anymore.
+	req.Body = bReader2
+
 	// Now call the handler, which will have all the params filled :)
-	r.handler.ServeHTTP(w, &req, *scopedParams)
+	r.handler.ServeHTTP(w, &req, *scopedParams, decodedBody)
 
 	return nil
 
