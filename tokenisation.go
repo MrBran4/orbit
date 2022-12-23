@@ -23,7 +23,7 @@ func tokenise(regex *regexp.Regexp, expectedParams []string, path string) (map[s
 	// Check the number of matches is equal to the number of params we were expecting.
 	// It shouldn't happen, since a parent of this will have already matched the regex to the path.
 	if len(params) != len(expectedParams) {
-		return nil, fmt.Errorf("wrong param count (want %d got %v)", len(expectedParams), params)
+		return nil, errMisconfigured(fmt.Sprintf("wrong param count (want %d got %v)", len(expectedParams), params))
 	}
 
 	// Push the extracted params into the result map.
