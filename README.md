@@ -31,7 +31,9 @@ type HandlerFunc func(http.ResponseWriter, *http.Request, RouteParams, FromBodya
 
 ### Routes can contain paramaters
 
-Routes in Orbit look like this:`/foo/bar/{fizz}/baz/{buzz}`. In this example:
+Routes in Orbit look like this:`/foo/bar/{fizz}/baz/{buzz}`.
+
+In the route above:
 
 - `fizz` and `buzz` are parameters and can match any string value
 - `/foo/bar/hello/baz/128` matches, with `fizz`=`"hello"`, `buzz`=`"128"`
@@ -46,6 +48,7 @@ Handlers are attached to the router like this:
 r := orbit.NewRouter()
 
 r.Handle(
+    path,       // The path template to match (/a/b/{c}/d)
     handler,    // your orbit.Handler
     methods,    // []string of HTTP methods to match. Nil means all methods.
     paramTypes, // map[string]FromRequestable - filled and passed to handler on request
@@ -55,7 +58,44 @@ r.Handle(
 
 ### Parameter types must implement FromRequestable
 
-## Quick Example:
+To make your types work with Orbit, they need to implement the FromRequestable
+interface - this lets Orbit build your type from the param string from an incoming request.
+
+To meet FromRequestable, just add a .FromRequest method that takes a string (which will be
+whatever was in the URL for the parameter), and returns the resolved value or err.
+
+Orbit calls FromRequest when trying to derive a value from an incoming request.
+
+```go
+// This example lets Orbit build Users from the UID in a request.
+// For example, User.FromRequest("125") will return the User with ID 125, or an error.
+func (u User)FromRequest(uid string) (any, error) {
+    // Our database stores uids as ints, but the request param is always a string.
+    uidInt, _ := strconv.Atoi
+    user, err = yourAppLogic.getUserByUID(uid)
+    return user, err
+}
+```
+
+### Body types must implement FromBodyable
+
+FromBodyable is just like FromRequestable, except it's used when trying to decode the _body_
+of an incoming request to a type.
+
+Instead of being passed a string, instead you get passed an io.ReadCloser of the
+request's body that you need to decode.
+
+```go
+// This example lets Orbit turn a request body into an Event struct by JSON
+// unmarshalling it. This is a contrived example - you should do validation too.
+func (e Event)FromBody(body io.ReadCloser) (any, error) {
+    var result Event
+    _ = json.NewDecoder(body).Decode(&result)
+    return result, nil
+}
+```
+
+## Working Example:
 
 Say you've got an API route to create an event for a given user by posting the
 new event as JSON to `/user/{user}/event/{event}`.
@@ -88,7 +128,7 @@ type Event struct {
 /// To make these types work with Orbit, they need to implement the FromRequestable
 /// or FromBodyable interfaces. You don't need both, but you can if you want.
 //
-// Orbit calls FromRequest when trying to derive a value froman incoming request,
+// Orbit calls FromRequest when trying to derive a value from an incoming request,
 // or FromBody when trying to decode from the request's body.
 
 // FromRequest resolves a user based on the UID provided in an API call.
