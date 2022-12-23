@@ -2,10 +2,8 @@ package orbit
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 )
@@ -93,28 +91,16 @@ func (r *route) ServeHTTP(w http.ResponseWriter, req http.Request) error {
 	}
 
 	// Try decoding the request body
-	var decodedBody FromBodyable = nil
-
 	// Read the body and make 2 new readers from it, since reading once
 	// consumes the body otherwise so it can't be re-read later.
 	body, _ := io.ReadAll(req.Body)
 	bReader1 := io.NopCloser(bytes.NewBuffer(body))
 	bReader2 := io.NopCloser(bytes.NewBuffer(body))
 
-	// Try decoding the body (as 'any' type) by calling the type's FromBody.
-	decodedBodyAsAny, err := r.bodyType.FromBody(bReader1)
+	decodedBody, err := tryFromBody(r.bodyType, bReader1)
 	if err != nil {
 		return err
 	}
-
-	// Decoded body currently has type 'any'. Use reflection to check it's
-	// actually of the correct type...
-	rDecodedBody := reflect.ValueOf(&decodedBody)
-	rDecodedBodyAsAny := reflect.ValueOf(decodedBodyAsAny)
-	if rDecodedBody.Type() != rDecodedBodyAsAny.Type() {
-		return errMisconfigured(fmt.Sprintf("FromBody method returned unexpected type (want %s got %s)", rDecodedBody.Type(), rDecodedBodyAsAny.Type()))
-	}
-	rDecodedBody.Set(reflect.ValueOf(decodedBodyAsAny))
 
 	// Set the request's body back to the second reader so it's not empty anymore.
 	req.Body = bReader2

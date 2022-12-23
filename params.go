@@ -7,7 +7,7 @@ import (
 
 type RouteParams map[string]FromRequestable
 
-// populateFromRequest takes a request path (e.g. /a/b/{c}/d) and returns a copy
+// newFromRequest takes a request path (e.g. /a/b/{c}/d) and returns a copy
 // with all arguments populated from that request.
 //
 // To be successful, *all* fields must populate correctly. If any fields fail
