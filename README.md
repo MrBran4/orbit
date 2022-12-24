@@ -1,7 +1,11 @@
 # 🪐 Orbit
 
-Orbit is a HTTP router for Go. It differs from other frameworks in that `/{params}/in/{the}/url` are converted to the type (any type) you actually want, as part of the framework handling the request. That is to say, instead of your handler recieving strings, it recieves
-actual resolved full structs that can include anything you want, like pulling from the database or something.
+Orbit is a HTTP router for Go.
+
+It differs from other frameworks in that `/{params}/in/{the}/url` are converted to the type (any type) you want, as part of the framework handling the request.
+That is to say, instead of your handler recieving strings, it recieves resolved full structs that can include anything you want, like pulling from the database or something. It can do the same for the body.
+
+If your handler gets called, it's being called with valid data in types you're expecting.
 
 It also guarantees that if your handler is called, then the data is present, and of the right type.
 Orbit's request handling is a bit like the Rocket framework for Rust, hence the whacky space-themed name.
