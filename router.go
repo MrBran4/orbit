@@ -18,6 +18,7 @@ import (
 // Build the router with .Handler or .Subrouter calls
 type Router struct {
 	routes []route
+	Logger *log.Logger // If you want Orbit to log its errors somewhere, set a logger here.
 }
 
 // NewRouter creates a new Orbit router, off of which you can hang your handlers.
@@ -97,7 +98,9 @@ func (router Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// If the err is any other type, stop processing handlers and log it
-		log.Printf("orbit encountered an error handling '%s': %s\n", r.URL.Path, err.Error())
+		if router.Logger != nil {
+			router.Logger.Printf("orbit encountered an error handling '%s': %s\n", r.URL.Path, err.Error())
+		}
 		w.WriteHeader(503)
 		return
 	}

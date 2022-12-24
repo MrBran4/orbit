@@ -249,3 +249,51 @@ func Test_Router_E2E_Misconfiguration(t *testing.T) {
 	assert.Error(t, err, "router bake failed")
 
 }
+
+func Benchmark_Router_ServeHTTP_2Params(b *testing.B) {
+
+	// Stop bench timer while initialising
+	b.StopTimer()
+
+	calls := 0
+
+	// Test input
+	req := httptest.NewRequest(
+		http.MethodPost, // post
+		"/a/b/hello/d/123",
+		nil,
+	)
+
+	handler := HandlerFunc(func(w http.ResponseWriter, r *http.Request, params RouteParams, body FromBodyable) {
+		calls++
+	})
+
+	// Build a router, add the handler, bake
+	r := NewRouter()
+	r.Handle(
+		"/a/b/{foo}/d/{bar}",
+		handler,
+		[]string{"POST"},
+		RouteParams{
+			"foo": testTypeString(""),
+			"bar": testTypeStruct{},
+		},
+		nil,
+	)
+
+	err := r.Bake()
+	assert.NoError(b, err, "router bake failed")
+
+	w := httptest.NewRecorder()
+
+	b.StartTimer()
+
+	// Bench
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(w, req)
+	}
+
+	// Check handler got called
+	assert.Equal(b, b.N, calls)
+
+}
