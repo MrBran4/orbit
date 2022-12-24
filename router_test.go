@@ -250,7 +250,7 @@ func Test_Router_E2E_Misconfiguration(t *testing.T) {
 
 }
 
-func Benchmark_Router_ServeHTTP_2Params(b *testing.B) {
+func Benchmark_ServeHTTP_NoRouteParams_NoBody(b *testing.B) {
 
 	// Stop bench timer while initialising
 	b.StopTimer()
@@ -260,7 +260,7 @@ func Benchmark_Router_ServeHTTP_2Params(b *testing.B) {
 	// Test input
 	req := httptest.NewRequest(
 		http.MethodPost, // post
-		"/a/b/hello/d/123",
+		"/a/b/hello",
 		nil,
 	)
 
@@ -271,12 +271,56 @@ func Benchmark_Router_ServeHTTP_2Params(b *testing.B) {
 	// Build a router, add the handler, bake
 	r := NewRouter()
 	r.Handle(
-		"/a/b/{foo}/d/{bar}",
+		"/a/b/hello",
+		handler,
+		[]string{"POST"},
+		nil,
+		nil,
+	)
+
+	err := r.Bake()
+	assert.NoError(b, err, "router bake failed")
+
+	w := httptest.NewRecorder()
+
+	b.StartTimer()
+
+	// Bench
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(w, req)
+	}
+
+	// Check handler got called
+	assert.Equal(b, b.N, calls)
+
+}
+
+func Benchmark_ServeHTTP_1RouteParam_NoBody(b *testing.B) {
+
+	// Stop bench timer while initialising
+	b.StopTimer()
+
+	calls := 0
+
+	// Test input
+	req := httptest.NewRequest(
+		http.MethodPost, // post
+		"/a/b/hello",
+		nil,
+	)
+
+	handler := HandlerFunc(func(w http.ResponseWriter, r *http.Request, params RouteParams, body FromBodyable) {
+		calls++
+	})
+
+	// Build a router, add the handler, bake
+	r := NewRouter()
+	r.Handle(
+		"/a/b/{foo}",
 		handler,
 		[]string{"POST"},
 		RouteParams{
 			"foo": testTypeString(""),
-			"bar": testTypeStruct{},
 		},
 		nil,
 	)
@@ -291,6 +335,225 @@ func Benchmark_Router_ServeHTTP_2Params(b *testing.B) {
 	// Bench
 	for i := 0; i < b.N; i++ {
 		r.ServeHTTP(w, req)
+	}
+
+	// Check handler got called
+	assert.Equal(b, b.N, calls)
+
+}
+
+func Benchmark_ServeHTTP_10RouteParams_Nobody(b *testing.B) {
+
+	// Stop bench timer while initialising
+	b.StopTimer()
+
+	calls := 0
+
+	// Test input
+	req := httptest.NewRequest(
+		http.MethodPost, // post
+		"/a/b/one/two/three/four/five/six/seven/eight/nine/ten/c",
+		nil,
+	)
+
+	handler := HandlerFunc(func(w http.ResponseWriter, r *http.Request, params RouteParams, body FromBodyable) {
+		calls++
+	})
+
+	// Build a router, add the handler, bake
+	r := NewRouter()
+	r.Handle(
+		"/a/b/{p1}/{p2}/{p3}/{p4}/{p5}/{p6}/{p7}/{p8}/{p9}/{p10}/c",
+		handler,
+		[]string{"POST"},
+		RouteParams{
+			"p1":  testTypeString(""),
+			"p2":  testTypeString(""),
+			"p3":  testTypeString(""),
+			"p4":  testTypeString(""),
+			"p5":  testTypeString(""),
+			"p6":  testTypeString(""),
+			"p7":  testTypeString(""),
+			"p8":  testTypeString(""),
+			"p9":  testTypeString(""),
+			"p10": testTypeString(""),
+		},
+		nil,
+	)
+
+	err := r.Bake()
+	assert.NoError(b, err, "router bake failed")
+
+	w := httptest.NewRecorder()
+
+	b.StartTimer()
+
+	// Bench
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(w, req)
+	}
+
+	// Check handler got called
+	assert.Equal(b, b.N, calls)
+
+}
+
+func Benchmark_ServeHTTP_NoRouteParams_Body(b *testing.B) {
+
+	// Stop bench timer while initialising
+	b.StopTimer()
+
+	calls := 0
+
+	handler := HandlerFunc(func(w http.ResponseWriter, r *http.Request, params RouteParams, body FromBodyable) {
+		calls++
+	})
+
+	// Build a router, add the handler, bake
+	r := NewRouter()
+	r.Handle(
+		"/a/b/hello",
+		handler,
+		[]string{"POST"},
+		nil,
+		testBodyableTypeStruct{},
+	)
+
+	err := r.Bake()
+	assert.NoError(b, err, "router bake failed")
+
+	w := httptest.NewRecorder()
+
+	// Reading an http.Request body consumes it.
+	// Pre-allocate all the requests here to avoid artificially increasing the benchmark...
+	var reqs []*http.Request
+	for i := 0; i < b.N; i++ {
+		reqs = append(reqs, httptest.NewRequest(
+			http.MethodPost, // post
+			"/a/b/hello",
+			strings.NewReader("{}"),
+		))
+	}
+
+	b.StartTimer()
+
+	// Bench
+	for i := 0; i < b.N; i++ {
+
+		r.ServeHTTP(w, reqs[i])
+	}
+
+	// Check handler got called
+	assert.Equal(b, b.N, calls)
+
+}
+
+func Benchmark_ServeHTTP_1RouteParam_Body(b *testing.B) {
+
+	// Stop bench timer while initialising
+	b.StopTimer()
+
+	calls := 0
+
+	handler := HandlerFunc(func(w http.ResponseWriter, r *http.Request, params RouteParams, body FromBodyable) {
+		calls++
+	})
+
+	// Build a router, add the handler, bake
+	r := NewRouter()
+	r.Handle(
+		"/a/b/{p1}",
+		handler,
+		[]string{"POST"},
+		RouteParams{
+			"p1": testTypeString(""),
+		},
+		testBodyableTypeStruct{},
+	)
+
+	err := r.Bake()
+	assert.NoError(b, err, "router bake failed")
+
+	w := httptest.NewRecorder()
+
+	// Reading an http.Request body consumes it.
+	// Pre-allocate all the requests here to avoid artificially increasing the benchmark...
+	var reqs []*http.Request
+	for i := 0; i < b.N; i++ {
+		reqs = append(reqs, httptest.NewRequest(
+			http.MethodPost, // post
+			"/a/b/hello",
+			strings.NewReader("{}"),
+		))
+	}
+
+	b.StartTimer()
+
+	// Bench
+	for i := 0; i < b.N; i++ {
+
+		r.ServeHTTP(w, reqs[i])
+	}
+
+	// Check handler got called
+	assert.Equal(b, b.N, calls)
+
+}
+
+func Benchmark_ServeHTTP_10RouteParams_Body(b *testing.B) {
+
+	// Stop bench timer while initialising
+	b.StopTimer()
+
+	calls := 0
+
+	handler := HandlerFunc(func(w http.ResponseWriter, r *http.Request, params RouteParams, body FromBodyable) {
+		calls++
+	})
+
+	// Build a router, add the handler, bake
+	r := NewRouter()
+	r.Handle(
+		"/a/b/{p1}/{p2}/{p3}/{p4}/{p5}/{p6}/{p7}/{p8}/{p9}/{p10}/c",
+		handler,
+		[]string{"POST"},
+		RouteParams{
+			"p1":  testTypeString(""),
+			"p2":  testTypeString(""),
+			"p3":  testTypeString(""),
+			"p4":  testTypeString(""),
+			"p5":  testTypeString(""),
+			"p6":  testTypeString(""),
+			"p7":  testTypeString(""),
+			"p8":  testTypeString(""),
+			"p9":  testTypeString(""),
+			"p10": testTypeString(""),
+		},
+		testBodyableTypeStruct{},
+	)
+
+	err := r.Bake()
+	assert.NoError(b, err, "router bake failed")
+
+	w := httptest.NewRecorder()
+
+	// Reading an http.Request body consumes it.
+	// Pre-allocate all the requests here to avoid artificially increasing the benchmark...
+	var reqs []*http.Request
+	for i := 0; i < b.N; i++ {
+		reqs = append(reqs, httptest.NewRequest(
+			http.MethodPost, // post
+			"/a/b/one/two/three/four/five/six/seven/eight/nine/ten/c",
+			strings.NewReader("{}"),
+		))
+	}
+
+	b.StartTimer()
+
+	// Bench
+	for i := 0; i < b.N; i++ {
+
+		r.ServeHTTP(w, reqs[i])
 	}
 
 	// Check handler got called
