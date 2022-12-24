@@ -1,3 +1,5 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/mrbran4/orbit.svg)](https://pkg.go.dev/github.com/mrbran4/orbit) ![Tests](https://github.com/mrbran4/orbit/actions/workflows/actions.yaml/badge.svg)
+
 # 🪐 Orbit
 
 Orbit is a HTTP router for Go.
