@@ -6,7 +6,9 @@ import (
 	"reflect"
 )
 
-// For a type to be decodable from a request body, it must implement FromBodyable.
+// The FromBodyable interface allows Orbit to resolve your type from a request
+// body (by calling your type\s FromBody function, and passing it the body).
+//
 // yourType.FromBody(X) will be called by orbit when a request is being handled
 // whose body is expected to be of that type.
 //

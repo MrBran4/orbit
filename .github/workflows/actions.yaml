@@ -6,7 +6,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-versions: [1.17.x, 1.19.x]
+        go-versions: [1.19.x]
         test-os: [ubuntu-latest]
     runs-on: ${{ matrix.test-os }}
     steps:

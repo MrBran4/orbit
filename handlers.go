@@ -4,12 +4,13 @@ import (
 	"net/http"
 )
 
-// Similar to http.Handler but extended to handle route params.
+// A Handler is similar to the stdlib'ss  http.Handler but extended to handle
+// route params and an optional body.
 type Handler interface {
 	ServeHTTP(http.ResponseWriter, *http.Request, RouteParams, FromBodyable)
 }
 
-// Orbit's equivalent of net/http's HandlerFunc adapter.
+// HandlerFunc is Orbit's equivalent of net/http's HandlerFunc adapter.
 // From the net/http docs:
 //
 // The HandlerFunc type is an adapter to allow the use of

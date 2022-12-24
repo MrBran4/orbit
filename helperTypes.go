@@ -6,17 +6,23 @@ import (
 
 // This file contains some helper types for decoding common things from params.
 
-// A string from a request param as-is.
+// BasicString is FromRequestable string type.
+// You can use it to extract string values from url params.
 type BasicString string
 
+// FromRequest takes the raw URL param value (as a string) and returns a
+// BasicString from it. It never returns an error.
 func (x BasicString) FromRequest(param string) (any, error) {
 	val := BasicString(param)
 	return val, nil
 }
 
-// Extract an int from a request param.
+// BasicInt is FromRequestable int type.
+// You can use it to extract int values from url params.
 type BasicInt int
 
+// FromRequest takes the raw URL param value (as a string) and returns a
+// BasicInt from it. If param is not a valid int, it returns an error.
 func (x BasicInt) FromRequest(param string) (any, error) {
 	intval, err := strconv.Atoi(param)
 	if err != nil {

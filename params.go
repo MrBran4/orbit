@@ -5,6 +5,20 @@ import (
 	"reflect"
 )
 
+// RouteParams are the values extracted from URL parameters (e.g. /from/{this}/)
+//
+// It's a map of[string]FromRequestable where the key is the parameter name from
+// the url, and the value is the object decoded from that.
+//
+// For a route like /users/{user}/photos/{photo}, your RouteParms would be like:
+//
+//	RouteParams{
+//		"user": YourUserType{},
+//		"photo": YourPhotoType{},
+//	}
+//
+// When Orbit calls your handler, it'll pass the same RouteParams to you, filled
+// with the data it decoded from the url.
 type RouteParams map[string]FromRequestable
 
 // newFromRequest takes a request path (e.g. /a/b/{c}/d) and returns a copy

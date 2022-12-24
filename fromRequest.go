@@ -1,10 +1,12 @@
 package orbit
 
-// For a type to be usable from a request it must implement FromRequestable.
+// The FromRequestable interface allows Orbit to resolve your type from a url
+// param (by calling your type\s FromBody function, and passing it the param's
+// value as as string).
 //
 // yourType.FromRequest(X) will be called by orbit when a request is being handled
 // where one of the parameters is expected to be of that type.
-
+//
 // For example if a request to /user/{uid} is called with uid=5, and you
 // handler has specified the {uid} param to be of type yourType, then then orbit
 // will call yourType.FromRequest("5"), and expects it to return (yourType, nil).
