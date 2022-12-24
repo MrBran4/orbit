@@ -222,3 +222,8 @@ log.Fatal(http.ListenAndServe(":8080", r))
 - [x] Top level router as a http.Handler
 - [ ] Somehow removing reliance on reflection
 - [ ] Child routes inheriting params from parent routes.
+
+## License
+
+Orbit is licenced under the MIT License. You can do what you like with it as long
+as you include the copyright notice in `LICENSE` in whatever you make.
