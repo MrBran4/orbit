@@ -30,11 +30,6 @@ func (params RouteParams) newFromRequest(tokens map[string]string) (*RouteParams
 		rvfilled.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(result))
 	}
 
-	// sanity check we pulled out the expected number of params
-	if len(filled) != len(params) {
-		return nil, errMisconfigured("extracted a different number of params to what the handler expected")
-	}
-
 	return &filled, nil
 
 }

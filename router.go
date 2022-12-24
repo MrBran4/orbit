@@ -80,7 +80,7 @@ func (r *Router) Bake() error {
 }
 
 // Handle an incoming HTTP request
-func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (router Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Try every handler until one handles it.
 	for _, route := range router.routes {
@@ -92,13 +92,16 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// If the error is errRouteDoesNotMatch, try the next handler
-		if _, ok := err.(*errRouteDoesNotMatch); ok {
+		if _, ok := err.(errRouteDoesNotMatch); ok {
 			continue
 		}
 
 		// If the err is any other type, stop processing handlers and log it
 		log.Printf("orbit encountered an error handling '%s': %s\n", r.URL.Path, err.Error())
+		w.WriteHeader(503)
 		return
 	}
+
+	w.WriteHeader(404)
 
 }

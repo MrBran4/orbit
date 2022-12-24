@@ -73,7 +73,8 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 		wantParamMap map[string]string // expected extraction
 		wantErr      bool              // want an error using regex?
 	}{
-		{name: "valid_1",
+		{
+			name:    "valid_1",
 			path:    "/aaa/bbb/{foo}/ccc/ddd",
 			reqPath: "/aaa/bbb/hello/ccc/ddd",
 			wantParamMap: map[string]string{
@@ -81,7 +82,8 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{name: "valid_2",
+		{
+			name:    "valid_2",
 			path:    "/aaa/bbb/{foo}/ccc/{bar}/ddd",
 			reqPath: "/aaa/bbb/hello/ccc/world/ddd",
 			wantParamMap: map[string]string{
@@ -90,13 +92,15 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{name: "valid_none",
+		{
+			name:         "valid_none",
 			path:         "/aaa/bbb/ccc/ddd",
 			reqPath:      "/aaa/bbb/ccc/ddd",
 			wantParamMap: map[string]string{},
 			wantErr:      false,
 		},
-		{name: "valid_start",
+		{
+			name:    "valid_start",
 			path:    "{foo}/aaa/bbb/ccc/{bar}/ddd",
 			reqPath: "hello/aaa/bbb/ccc/world/ddd",
 			wantParamMap: map[string]string{
@@ -105,7 +109,8 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{name: "valid_end",
+		{
+			name:    "valid_end",
 			path:    "{foo}/aaa/bbb/ccc/ddd/{bar}",
 			reqPath: "hello/aaa/bbb/ccc/ddd/world",
 			wantParamMap: map[string]string{
@@ -114,7 +119,8 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{name: "valid_touching",
+		{
+			name:    "valid_touching",
 			path:    "/aaa/bbb/{foo}/{bar}/ccc/ddd/",
 			reqPath: "/aaa/bbb/hello/world/ccc/ddd/",
 			wantParamMap: map[string]string{
@@ -123,7 +129,8 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{name: "valid_really_touching",
+		{
+			name:    "valid_really_touching",
 			path:    "/aaa/bbb/{foo}{bar}/ccc/ddd/",
 			reqPath: "/aaa/bbb/waaahluigi/ccc/ddd/",
 			wantParamMap: map[string]string{
@@ -131,6 +138,13 @@ func Test_IntegrationTest_tokenisation(t *testing.T) {
 				"bar": "i",
 			},
 			wantErr: false,
+		},
+		{
+			name:         "invalid_misconfigured_router",
+			path:         "/aaa/bbb/{foo}/{bar}/ccc/ddd/",
+			reqPath:      "/aaa/bbb/ccc",
+			wantParamMap: nil,
+			wantErr:      true,
 		},
 	}
 	for _, tt := range tests {

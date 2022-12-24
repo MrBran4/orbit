@@ -144,7 +144,7 @@ type Event struct {
 // For example, User.FromRequest("125") will return the User with ID 125, or an error.
 func (u User)FromRequest(uid string) (any, error) {
     // Our database stores uids as ints, but the request only has strings.
-    uidInt, _ := strconv.Atoi
+    uidInt, _ := strconv.Atoi(uid)
     user, err = yourAppLogic.getUserByUID(uid)
     return user, err
 }
@@ -198,10 +198,10 @@ r.Handle(
     // Param types to decode (types must implement FromRequestable)
     orbit.RouteParams{
         "user": User{},
-        "event": orbit.BasicString, // helper: just a string that implements FromRequest.
+        "event": orbit.BasicString(""), // helper: just a string that implements FromRequest.
     },
     // Body type (must implement FromBodyable)
-    User{},
+    Event{},
 )
 
 // Precompiles regexes etc for the router.

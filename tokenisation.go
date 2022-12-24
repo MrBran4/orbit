@@ -90,8 +90,6 @@ func buildMatcherRegex(path string) (*regexp.Regexp, []string, error) {
 	rxp.WriteString(regexp.QuoteMeta(path[lastEnd:]))
 	rxp.WriteString("/?$")
 
-	fmt.Printf("\nCompiled regex for %s: %s\n\n", path, rxp.String())
-
 	// Try compiling the regex
 	compiledRxp, err := regexp.Compile(rxp.String())
 	if err != nil {
