@@ -97,15 +97,20 @@ func (e Event)FromBody(body io.ReadCloser) (any, error) {
 
 ## Working Example:
 
-Say you've got an API route to create an event for a given user by posting the
+Say you've got an API route to create an event for a given user by POSTing the
 new event as JSON to `/user/{user}/event/{event}`.
 
-An example of a valid request for that endpoint might be `GET /user/5/event/my-event`
-with a JSON body representing a new event. The goal is to create an event owner by
-user `5` called `my-event`, based on the JSON.
+An example of a valid request for that endpoint might be `POST /user/5/event/my-event`
+with a JSON body representing a new event. The goal is to create an event owned by the
+user `5` called `my-event`, where the event's details are provided in JSON in the body.
 
-In this example we'll set up a route that matches that endpoint, and calls the handler
-with a resolved User, Event name, and Body based on the incoming request.
+In this example we'll:
+
+- Set up a route that matches that endpoint and method
+- Make our User and Event types decodable from the request params/body
+- Make a dummy handler for Orbit to call
+- Wire that handler up to Orbit, and tell Orbit what the types of those params/body are.
+- Start a web server
 
 ```go
 // ---
